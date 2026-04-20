@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrderFlow B2B</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="OrderFlow">
+<meta name="theme-color" content="#6366F1">
+<link rel="manifest" href="/manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Heebo',Tahoma,sans-serif;background:#020817;color:#E2E8F0;min-height:100vh;direction:rtl}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:rgba(99,102,241,.4);border-radius:4px}
+.card{background:rgba(15,23,42,.75);backdrop-filter:blur(20px);border:1px solid rgba(99,102,241,.15);border-radius:16px;box-shadow:0 4px 40px rgba(0,0,0,.4)}
+.btn{border:none;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .2s;letter-spacing:.3px}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.15)}
+.btn-primary{background:linear-gradient(135deg,#6366F1,#8B5CF6);color:white;box-shadow:0 4px 20px rgba(99,102,241,.35)}
+.btn-success{background:linear-gradient(135deg,#25D366,#128C7E);color:white;box-shadow:0 4px 20px rgba(37,211,102,.35)}
+.btn-ghost{background:rgba(99,102,241,.1);color:#A5B4FC;border:1px solid rgba(99,102,241,.2)!important}
+.btn-danger{background:rgba(239,68,68,.1);color:#F87171;border:1px solid rgba(239,68,68,.2)!important}
+.btn-wa{background:linear-gradient(135deg,#25D366,#128C7E);color:white;box-shadow:0 4px 20px rgba(37,211,102,.4)}
+input,textarea,select{width:100%;background:rgba(0,0,0,.4);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:10px 14px;color:#E2E8F0;font-size:14px;font-family:inherit;direction:rtl;outline:none;transition:border-color .2s}
+input:focus,textarea:focus,select:focus{border-color:#6366F1}
+.field-label{font-size:11px;color:#6366F1;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+.nav{background:rgba(2,8,23,.9);backdrop-filter:blur(24px);border-bottom:1px solid rgba(99,102,241,.12);padding:0 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.tab{background:transparent;border:none;cursor:pointer;font-family:inherit;padding:14px 16px;font-size:13px;font-weight:700;color:#475569;transition:all .2s;position:relative}
+.tab.active{color:#A5B4FC}
+.tab.active::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:28px;height:2px;background:linear-gradient(90deg,#6366F1,#A78BFA);border-radius:2px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center;padding:16px}
+.overlay.open{display:flex}
+.modal{width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:24px;animation:modalIn .25s cubic-bezier(.16,1,.3,1)}
+.modal-wide{max-width:680px}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.badge{background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#A5B4FC;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700}
+.stat-card{padding:18px 20px}
+.page{display:none;animation:fadeUp .3s}.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:8px 12px;text-align:right;font-size:11px;color:#475569;font-weight:600;background:rgba(0,0,0,.2)}
+td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+tr:hover td{background:rgba(99,102,241,.04)}
+.qty-in{width:68px;padding:7px 8px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:8px;color:#e2e8f0;text-align:center;font-size:15px;font-family:inherit;outline:none;transition:all .2s}
+.qty-in:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.qty-in.has-v{border-color:#34d399;background:rgba(52,211,153,.08);color:#34d399;font-weight:700}
+.note-in{padding:6px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:#94a3b8;font-size:12px;font-family:inherit;outline:none}
+.note-in:focus{border-color:#6366f1}
+@media(max-width:600px){.nav{padding:0 10px}.tab{padding:12px 10px;font-size:12px}td,th{padding:6px 8px}.qty-in{width:54px}}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+const FORM_BASE_URL = "https://visionary-lolly-8f37d8.netlify.app/form.html";
+const BIZ_PHONE = "972522773086";
+
+// ── Storage ──────────────────────────────────────────────────────────────────
+const LS = {
+  get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+};
+
+// ── State ────────────────────────────────────────────────────────────────────
+let state = {
+  tab: "customers",
+  categories: LS.get("cats",[
+    {id:"c1",name:"מוצרי חלב",icon:"🥛",color:"#6366F1"},
+    {id:"c2",name:"ירקות ופירות",icon:"🥦",color:"#34D399"},
+    {id:"c3",name:"מאפים",icon:"🥐",color:"#F59E0B"},
+    {id:"c4",name:"משקאות",icon:"🧃",color:"#A78BFA"},
+  ]),
+  products: LS.get("prods",[
+    {id:"p1",cat:"c1",name:"חלב תנובה 3%",sku:"TNV-001",unit:"ליטר",price:6.90},
+    {id:"p2",cat:"c1",name:'גבינה לבנה 5%',sku:"TNV-002",unit:'ק"ג',price:18.50},
+    {id:"p3",cat:"c1",name:"שמנת חמוצה",sku:"TNV-003",unit:"200ג",price:8.90},
+    {id:"p4",cat:"c2",name:"עגבניות",sku:"VEG-001",unit:'ק"ג',price:7.50},
+    {id:"p5",cat:"c2",name:"מלפפונים",sku:"VEG-002",unit:'ק"ג',price:5.90},
+    {id:"p6",cat:"c3",name:"לחם אחיד",sku:"BKR-001",unit:"כיכר",price:9.90},
+    {id:"p7",cat:"c3",name:"פיתות",sku:"BKR-002",unit:"חב׳ 6",price:7.50},
+    {id:"p8",cat:"c4",name:"מים מינרלים",sku:"DRK-001",unit:"1.5L",price:4.90},
+    {id:"p9",cat:"c4",name:"מיץ תפוזים",sku:"DRK-002",unit:"ליטר",price:12.90},
+  ]),
+  customers: LS.get("custs",[
+    {id:"cu1",name:"מסעדת הים הגדול",contact:"דוד לוי",phone:"0521234567",city:"תל אביב"},
+    {id:"cu2",name:"קפה רוטשילד",contact:"מיכל כהן",phone:"0529876543",city:"תל אביב"},
+  ]),
+  orders: LS.get("orders",[]),
+  modal: null,
+  sendStep: 1,
+  sendSelected: null,
+  sendCustomer: null,
+  sendOrderId: null,
+};
+
+function save() {
+  LS.set("cats", state.categories);
+  LS.set("prods", state.products);
+  LS.set("custs", state.customers);
+  LS.set("orders", state.orders);
+}
+
+// ── Encode ───────────────────────────────────────────────────────────────────
+function encodeForm(obj) {
+  const json = JSON.stringify(obj);
+  return LZString.compressToEncodedURIComponent(json);
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function render() {
+  document.getElementById("app").innerHTML = buildApp();
+  bindEvents();
+}
+
+function buildApp() {
+  const s = state;
+  const tabs = [
+    {k:"customers",l:"לקוחות",i:"◉"},
+    {k:"products", l:"קטלוג", i:"◈"},
+    {k:"orders",   l:"הזמנות",i:"◎"},
+  ];
+  const stats = [
+    {v:s.categories.length,l:"מחלקות",   c:"#6366F1"},
+    {v:s.products.length,  l:"מוצרים",   c:"#A78BFA"},
+    {v:s.customers.length, l:"לקוחות",   c:"#34D399"},
+    {v:s.orders.length,    l:"נשלחו",    c:"#F59E0B"},
+  ];
+
+  return `
+  <div style="position:fixed;inset:0;background-image:linear-gradient(rgba(99,102,241,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0"></div>
+  <div style="position:relative;z-index:1">
+    <nav class="nav">
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 0">
+        <div style="width:36px;height:36px;background:linear-gradient(135deg,#6366F1,#8B5CF6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px">⬡</div>
+        <div>
+          <div style="font-size:14px;font-weight:900;background:linear-gradient(90deg,#F8FAFC,#A5B4FC);-webkit-background-clip:text;-webkit-text-fill-color:transparent">OrderFlow B2B</div>
+          <div style="font-size:10px;color:#334155;letter-spacing:1px;text-transform:uppercase">מערכת הזמנות</div>
+        </div>
+      </div>
+      <div style="display:flex">
+        ${tabs.map(t=>`<button class="tab${s.tab===t.k?" active":""}" onclick="setTab('${t.k}')">${t.i} ${t.l}</button>`).join("")}
+      </div>
+      <div style="width:80px;text-align:center">
+        ${s.orders.length>0?`<span class="badge" style="color:#F59E0B;border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.1)">${s.orders.length} נשלחו</span>`:""}
+      </div>
+    </nav>
+
+    <div style="padding:24px;max-width:1100px;margin:0 auto">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px">
+        ${stats.map(s=>`<div class="card stat-card"><div style="font-size:10px;color:#334155;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${s.l}</div><div style="font-size:28px;font-weight:900;color:${s.c}">${s.v}</div></div>`).join("")}
+      </div>
+
+      ${buildCustomersTab()}
+      ${buildProductsTab()}
+      ${buildOrdersTab()}
+    </div>
+  </div>
+  ${buildModal()}
+  `;
+}
+
+function buildCustomersTab() {
+  if (state.tab !== "customers") return '<div class="page" id="page-customers"></div>';
+  return `<div class="page active" id="page-customers">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div><div style="font-size:20px;font-weight:900;color:#F8FAFC">לקוחות</div><div style="font-size:12px;color:#334155;margin-top:2px">${state.customers.length} לקוחות רשומים</div></div>
+      <button class="btn btn-primary" onclick="openModal('new-cust')">+ לקוח חדש</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">
+      ${state.customers.map(c=>`
+        <div class="card" style="padding:18px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+            <div><div style="font-weight:800;font-size:15px;color:#F8FAFC;margin-bottom:3px">${c.name}</div><div style="font-size:12px;color:#64748b">${c.contact}</div></div>
+            <span class="badge" style="color:#34D399;border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.1)">${c.city}</span>
+          </div>
+          <div style="font-size:13px;color:#475569;margin-bottom:14px">📞 ${c.phone}</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-wa" style="flex:2;padding:10px 12px;font-size:13px" onclick="openSend('${c.id}')">📲 שלח טופס הזמנה</button>
+            <button class="btn btn-ghost" style="flex:1;padding:10px" onclick="openModal('edit-cust','${c.id}')">✏️</button>
+            <button class="btn btn-danger" style="flex:1;padding:10px" onclick="delCust('${c.id}')">🗑️</button>
+          </div>
+        </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function buildProductsTab() {
+  if (state.tab !== "products") return '<div class="page" id="page-products"></div>';
+  const grouped = state.categories.map(c=>({...c,items:state.products.filter(p=>p.cat===c.id)}));
+  return `<div class="page active" id="page-products">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div><div style="font-size:20px;font-weight:900;color:#F8FAFC">קטלוג מוצרים</div><div style="font-size:12px;color:#334155;margin-top:2px">${state.categories.length} מחלקות · ${state.products.length} מוצרים</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="openModal('new-cat')">+ מחלקה</button>
+        <button class="btn btn-primary" onclick="openModal('new-prod')">+ מוצר</button>
+      </div>
+    </div>
+    ${grouped.map(cat=>`
+      <div class="card" style="margin-bottom:12px;overflow:hidden">
+        <div style="padding:12px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(99,102,241,.1);background:linear-gradient(90deg,${cat.color}12,transparent)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:34px;height:34px;background:${cat.color}20;border:1px solid ${cat.color}40;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px">${cat.icon}</div>
+            <div><div style="font-weight:800;font-size:14px;color:#F8FAFC">${cat.name}</div><span class="badge" style="color:${cat.color};border-color:${cat.color}40;background:${cat.color}15">${cat.items.length} מוצרים</span></div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost" style="padding:5px 10px;font-size:11px" onclick="openModal('edit-cat','${cat.id}')">✏️</button>
+            <button class="btn btn-danger" style="padding:5px 10px;font-size:11px" onclick="delCat('${cat.id}')">🗑️</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>מוצר</th><th>מק"ט</th><th>יחידה</th><th>מחיר</th><th></th></tr></thead>
+          <tbody>
+            ${cat.items.map(p=>`<tr>
+              <td style="font-weight:600;color:#F8FAFC">${p.name}${p.notes?`<br><span style="font-size:11px;color:#64748b;font-weight:400">📝 ${p.notes}</span>`:""}
+              </td>
+              <td style="color:#475569;font-size:12px">${p.sku}</td>
+              <td style="color:#94a3b8">${p.unit}</td>
+              <td style="color:#34d399;font-weight:700">₪${Number(p.price).toFixed(2)}</td>
+              <td><div style="display:flex;gap:5px;justify-content:flex-end">
+                <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" onclick="openModal('edit-prod','${p.id}')">✏️</button>
+                <button class="btn btn-danger" style="padding:4px 8px;font-size:11px" onclick="delProd('${p.id}')">🗑️</button>
+              </div></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+        <div style="padding:8px 12px;border-top:1px solid rgba(255,255,255,.04)">
+          <button class="btn btn-ghost" style="padding:5px 12px;font-size:12px" onclick="openModal('new-prod-cat','${cat.id}')">+ הוסף מוצר</button>
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function buildOrdersTab() {
+  if (state.tab !== "orders") return '<div class="page" id="page-orders"></div>';
+  return `<div class="page active" id="page-orders">
+    <div style="font-size:20px;font-weight:900;color:#F8FAFC;margin-bottom:18px">הזמנות שנשלחו</div>
+    ${state.orders.length===0
+      ? `<div class="card" style="padding:40px;text-align:center;color:#334155">עדיין לא נשלחו הזמנות</div>`
+      : state.orders.slice().reverse().map(o=>`
+        <div class="card" style="padding:14px 18px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="font-weight:700;color:#F8FAFC;margin-bottom:3px">${o.cname}</div>
+            <div style="font-size:12px;color:#475569">${o.id} · ${o.at} · ${o.prodIds?o.prodIds.length:0} מוצרים</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="badge" style="color:#34D399;border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.1)">נשלח</span>
+            <button class="btn btn-ghost" style="padding:7px 14px;font-size:12px;white-space:nowrap" onclick="resendOrder('${o.id}')">🔄 שלח שוב</button>
+          </div>
+        </div>`).join("")}
+  </div>`;
+}
+
+// ── Modal builder ─────────────────────────────────────────────────────────────
+function buildModal() {
+  const m = state.modal;
+  if (!m) return '<div class="overlay" id="overlay"></div>';
+
+  let content = "";
+
+  if (m.type === "new-cust" || m.type === "edit-cust") {
+    const c = m.data || {name:"",contact:"",phone:"",city:""};
+    content = `
+      <div style="font-size:16px;font-weight:800;color:#F8FAFC;margin-bottom:20px">${m.type==="new-cust"?"לקוח חדש":"עריכת לקוח"}</div>
+      <div class="field-label">שם עסק</div><input id="f-name" value="${c.name}" placeholder="שם העסק" style="margin-bottom:12px">
+      <div class="field-label">איש קשר</div><input id="f-contact" value="${c.contact}" placeholder="שם + תפקיד" style="margin-bottom:12px">
+      <div class="field-label">מספר WhatsApp</div><input id="f-phone" value="${c.phone}" placeholder="0521234567" style="margin-bottom:12px">
+      <div class="field-label">עיר</div><input id="f-city" value="${c.city}" placeholder="תל אביב" style="margin-bottom:20px">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1;padding:12px" onclick="saveCust('${c.id||""}')">שמור</button>
+        <button class="btn btn-ghost" style="flex:1;padding:12px" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+
+  else if (m.type === "new-cat" || m.type === "edit-cat") {
+    const c = m.data || {name:"",icon:"📦",color:"#6366F1"};
+    const colors = ["#6366F1","#34D399","#F59E0B","#A78BFA","#EC4899","#06B6D4","#EF4444","#14B8A6"];
+    content = `
+      <div style="font-size:16px;font-weight:800;color:#F8FAFC;margin-bottom:20px">${m.type==="new-cat"?"מחלקה חדשה":"עריכת מחלקה"}</div>
+      <div class="field-label">שם מחלקה</div><input id="f-name" value="${c.name}" placeholder="שם המחלקה" style="margin-bottom:12px">
+      <div class="field-label">אייקון</div><input id="f-icon" value="${c.icon}" placeholder="📦" style="margin-bottom:12px">
+      <div class="field-label">צבע</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+        ${colors.map(cl=>`<div onclick="pickColor('${cl}')" style="width:28px;height:28px;border-radius:8px;background:${cl};cursor:pointer;border:${c.color===cl?"3px solid white":"2px solid transparent"};transition:all .15s" id="color-${cl.slice(1)}"></div>`).join("")}
+      </div>
+      <input type="hidden" id="f-color" value="${c.color}">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1;padding:12px" onclick="saveCat('${c.id||""}')">שמור</button>
+        <button class="btn btn-ghost" style="flex:1;padding:12px" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+
+  else if (m.type === "new-prod" || m.type === "edit-prod" || m.type === "new-prod-cat") {
+    const p = m.data || {name:"",sku:"",cat:m.catId||state.categories[0]?.id||"",unit:"",price:"",notes:""};
+    content = `
+      <div style="font-size:16px;font-weight:800;color:#F8FAFC;margin-bottom:20px">${p.id?"עריכת מוצר":"מוצר חדש"}</div>
+      <div class="field-label">שם מוצר</div><input id="f-name" value="${p.name}" placeholder="שם המוצר" style="margin-bottom:12px">
+      <div class="field-label">מק"ט</div><input id="f-sku" value="${p.sku}" placeholder="ABC-001" style="margin-bottom:12px">
+      <div class="field-label">מחלקה</div>
+      <select id="f-cat" style="margin-bottom:12px">
+        ${state.categories.map(c=>`<option value="${c.id}"${c.id===p.cat?" selected":""}>${c.icon} ${c.name}</option>`).join("")}
+      </select>
+      <div class="field-label">יחידת מידה</div><input id="f-unit" value="${p.unit}" placeholder='ק"ג / ליטר / יחידה' style="margin-bottom:12px">
+      <div class="field-label">מחיר ₪</div><input id="f-price" type="number" value="${p.price}" placeholder="0.00" style="margin-bottom:12px">
+      <div class="field-label">הערות למוצר</div><textarea id="f-notes" placeholder="תיאור, אחסון, אלרגנים, מידע נוסף..." style="margin-bottom:20px;min-height:70px;resize:vertical">${(p.notes||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</textarea>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1;padding:12px" onclick="saveProd('${p.id||""}')">שמור</button>
+        <button class="btn btn-ghost" style="flex:1;padding:12px" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+
+  else if (m.type === "send") {
+    content = buildSendModal();
+  }
+
+  return `<div class="overlay open" id="overlay" onclick="closeModal()">
+    <div class="card modal${m.type==="send"&&state.sendStep===1?" modal-wide":""}" onclick="event.stopPropagation()">${content}</div>
+  </div>`;
+}
+
+window.updatePrice = (id, val) => {
+  state.sendPrices[id] = parseFloat(val) || 0;
+};
+
+function buildSendModal() {
+  const cust = state.sendCustomer;
+  if (state.sendStep === 1) {
+    const grouped = state.categories.map(c=>({...c,items:state.products.filter(p=>p.cat===c.id)})).filter(g=>g.items.length>0);
+    const sel = state.sendSelected;
+    const selCount = sel ? sel.size : 0;
+    return `
+      <div style="font-size:16px;font-weight:800;color:#F8FAFC;margin-bottom:6px">שליחת טופס — ${cust.name}</div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:16px">בחר מוצרים ועדכן מחירים אם נדרש (${selCount} נבחרו)</div>
+      ${grouped.map(cat=>{
+        const allOn = cat.items.every(p=>sel&&sel.has(p.id));
+        return `<div style="margin-bottom:10px;border:1px solid rgba(255,255,255,.07);border-radius:12px;overflow:hidden">
+          <div style="padding:10px 14px;background:rgba(99,102,241,.08);display:flex;align-items:center;gap:10px;cursor:pointer" onclick="toggleCat('${cat.id}')">
+            <input type="checkbox" ${allOn?"checked":""} onchange="toggleCat('${cat.id}')" style="width:16px;height:16px;accent-color:#6366f1">
+            <span style="font-size:17px">${cat.icon}</span>
+            <span style="font-weight:700;font-size:14px">${cat.name}</span>
+            <span class="badge" style="margin-right:auto;color:${cat.color};border-color:${cat.color}40;background:${cat.color}15">${cat.items.filter(p=>sel&&sel.has(p.id)).length}/${cat.items.length}</span>
+          </div>
+          ${cat.items.map(p=>{
+            const curPrice = state.sendPrices[p.id] !== undefined ? state.sendPrices[p.id] : p.price;
+            const isOn = sel&&sel.has(p.id);
+            return `<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.04);${isOn?"":"opacity:.45"}">
+              <input type="checkbox" ${isOn?"checked":""} onchange="toggleProd('${p.id}')" style="width:15px;height:15px;accent-color:#6366f1;flex-shrink:0">
+              <span style="flex:1;font-size:13px;font-weight:600;cursor:pointer" onclick="toggleProd('${p.id}')">${p.name}</span>
+              <span style="font-size:11px;color:#475569;white-space:nowrap">${p.unit}</span>
+              <div style="display:flex;align-items:center;gap:4px">
+                <span style="font-size:12px;color:#64748b">₪</span>
+                <input type="number" value="${curPrice}" min="0" step="0.1"
+                  onchange="updatePrice('${p.id}',this.value)"
+                  onclick="event.stopPropagation()"
+                  style="width:72px;padding:4px 6px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:6px;color:#34d399;font-weight:700;font-size:13px;font-family:inherit;text-align:center;outline:none">
+              </div>
+            </div>`;
+          }).join("")}
+        </div>`;
+      }).join("")}
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-primary" style="flex:2;padding:12px" onclick="sendStep2()" ${selCount===0?"disabled":""}>המשך ← (${selCount} מוצרים)</button>
+        <button class="btn btn-ghost" style="flex:1;padding:12px" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+
+  // Step 2
+  const url = buildFormUrl();
+  const msg = `היי ${cust.contact} 👋\n\nהכנתי עבורך טופס הזמנה.\nלחץ על הקישור, הזן כמויות ושלח חזרה:\n\n${url}`;
+  return `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:64px;height:64px;background:linear-gradient(135deg,#25D366,#128C7E);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px;box-shadow:0 8px 30px rgba(37,211,102,.3)">📲</div>
+      <div style="font-size:16px;font-weight:800;color:#F8FAFC;margin-bottom:4px">${cust.name}</div>
+      <div style="font-size:13px;color:#64748b">${state.sendOrderId} · ${state.sendSelected.size} מוצרים</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#6366f1;margin-bottom:8px;text-transform:uppercase">▸ הודעה ללקוח</div>
+      <div style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px;font-size:13px;color:#94a3b8;white-space:pre-wrap;line-height:1.7;margin-bottom:8px">${msg}</div>
+      <button class="btn btn-ghost" style="width:100%;padding:10px;font-size:13px" onclick="copyMsg()">📋 העתק הודעה</button>
+    </div>
+    <button class="btn btn-wa" style="width:100%;padding:16px;font-size:15px;margin-bottom:10px" onclick="doSend()">💬 פתח WhatsApp ושלח</button>
+    <button class="btn btn-ghost" style="width:100%;padding:10px;font-size:13px" onclick="backStep1()">← חזור לבחירת מוצרים</button>`;
+}
+
+function buildFormUrl() {
+  const sel = state.sendSelected;
+  const selProds = state.products.filter(p=>sel.has(p.id));
+  const usedCats = new Set(selProds.map(p=>p.cat));
+  const selCats = state.categories.filter(c=>usedCats.has(c.id));
+  const fd = {
+    o: state.sendOrderId,
+    b: BIZ_PHONE,
+    u: {n:state.sendCustomer.name, t:state.sendCustomer.contact, p:state.sendCustomer.phone},
+    g: selCats.map(c=>({i:c.id,n:c.name,e:c.icon,c:c.color})),
+    r: selProds.map(p=>({i:p.id,g:p.cat,n:p.name.trim(),u:p.unit.trim().replace(/"/g,"\u2019"),p:state.sendPrices[p.id]!==undefined?state.sendPrices[p.id]:p.price}))
+  };
+  return FORM_BASE_URL + "#" + encodeForm(fd);
+}
+
+// ── Event handlers ────────────────────────────────────────────────────────────
+window.setTab = t => { state.tab = t; render(); };
+window.closeModal = () => { state.modal = null; render(); };
+window.pickColor = cl => {
+  document.getElementById("f-color").value = cl;
+  document.querySelectorAll("[id^='color-']").forEach(el=>{
+    el.style.border = el.id === "color-"+cl.slice(1) ? "3px solid white" : "2px solid transparent";
+  });
+};
+
+window.openModal = (type, id) => {
+  let data = null;
+  if (id) {
+    if (type==="edit-cust") data = state.customers.find(c=>c.id===id);
+    if (type==="edit-cat")  data = state.categories.find(c=>c.id===id);
+    if (type==="edit-prod") data = state.products.find(p=>p.id===id);
+    if (type==="new-prod-cat") { state.modal = {type,catId:id}; render(); return; }
+  }
+  state.modal = {type, data};
+  render();
+};
+
+window.openSend = id => {
+  const cust = state.customers.find(c=>c.id===id);
+  state.sendCustomer = cust;
+  state.sendSelected = new Set(state.products.map(p=>p.id));
+  state.sendPrices = {};  // מחירים מותאמים לטופס זה
+  state.sendOrderId = "ORD-" + Date.now().toString().slice(-5);
+  state.sendStep = 1;
+  state.modal = {type:"send"};
+  render();
+};
+
+window.toggleProd = id => {
+  if (state.sendSelected.has(id)) state.sendSelected.delete(id);
+  else state.sendSelected.add(id);
+  render();
+};
+
+window.toggleCat = catId => {
+  const items = state.products.filter(p=>p.cat===catId);
+  const allOn = items.every(p=>state.sendSelected.has(p.id));
+  items.forEach(p=>allOn?state.sendSelected.delete(p.id):state.sendSelected.add(p.id));
+  render();
+};
+
+window.sendStep2 = () => { state.sendStep = 2; render(); };
+window.backStep1 = () => { state.sendStep = 1; render(); };
+
+window.copyMsg = () => {
+  const url = buildFormUrl();
+  const msg = `היי ${state.sendCustomer.contact} 👋\n\nהכנתי עבורך טופס הזמנה.\nלחץ על הקישור, הזן כמויות ושלח חזרה:\n\n${url}`;
+  navigator.clipboard.writeText(msg);
+};
+
+window.doSend = () => {
+  const url = buildFormUrl();
+  const msg = `היי ${state.sendCustomer.contact} 👋\n\nהכנתי עבורך טופס הזמנה.\nלחץ על הקישור, הזן כמויות ושלח חזרה:\n\n${url}`;
+  window.open(`https://wa.me/${state.sendCustomer.phone.replace(/^0/,"972")}?text=${encodeURIComponent(msg)}`,"_blank");
+  state.orders.push({
+    id: state.sendOrderId,
+    cname: state.sendCustomer.name,
+    custId: state.sendCustomer.id,
+    at: new Date().toLocaleString("he-IL"),
+    url,
+    prodIds: [...state.sendSelected]
+  });
+  save();
+  state.modal = null;
+  render();
+};
+
+window.resendOrder = ordId => {
+  const order = state.orders.find(o=>o.id===ordId);
+  if (!order) return;
+  const cust = state.customers.find(c=>c.id===order.custId);
+  if (!cust) { alert("הלקוח לא נמצא — ייתכן שנמחק"); return; }
+  state.sendCustomer = cust;
+  state.sendSelected = new Set(order.prodIds || state.products.map(p=>p.id));
+  state.sendPrices = {};
+  state.sendOrderId = "ORD-" + Date.now().toString().slice(-5);
+  state.sendStep = 1;
+  state.modal = {type:"send"};
+  render();
+};
+
+window.saveCust = id => {
+  const c = {
+    id: id||"cu"+Date.now(),
+    name: document.getElementById("f-name").value,
+    contact: document.getElementById("f-contact").value,
+    phone: document.getElementById("f-phone").value,
+    city: document.getElementById("f-city").value,
+  };
+  if (id) state.customers = state.customers.map(x=>x.id===id?c:x);
+  else state.customers.push(c);
+  save(); state.modal=null; render();
+};
+
+window.saveCat = id => {
+  const c = {
+    id: id||"c"+Date.now(),
+    name: document.getElementById("f-name").value,
+    icon: document.getElementById("f-icon").value,
+    color: document.getElementById("f-color").value,
+  };
+  if (id) state.categories = state.categories.map(x=>x.id===id?c:x);
+  else state.categories.push(c);
+  save(); state.modal=null; render();
+};
+
+window.saveProd = id => {
+  const p = {
+    id: id||"p"+Date.now(),
+    name: document.getElementById("f-name").value.trim(),
+    sku: document.getElementById("f-sku").value.trim(),
+    cat: document.getElementById("f-cat").value,
+    unit: document.getElementById("f-unit").value.trim().replace(/"/g,"\u2019"),
+    price: parseFloat(document.getElementById("f-price").value)||0,
+    notes: document.getElementById("f-notes").value.trim(),
+  };
+  if (id) state.products = state.products.map(x=>x.id===id?p:x);
+  else state.products.push(p);
+  save(); state.modal=null; render();
+};
+
+window.delCust = id => { if(confirm("למחוק לקוח?")){ state.customers=state.customers.filter(c=>c.id!==id); save(); render(); }};
+window.delCat  = id => { if(confirm("למחוק מחלקה וכל המוצרים שלה?")){ state.categories=state.categories.filter(c=>c.id!==id); state.products=state.products.filter(p=>p.cat!==id); save(); render(); }};
+window.delProd = id => { if(confirm("למחוק מוצר?")){ state.products=state.products.filter(p=>p.id!==id); save(); render(); }};
+
+function bindEvents() {}
+
+// ── Customer Form ─────────────────────────────────────────────────────────────
+function renderCustomerForm(data) {
+  const {o:oid, b:bphone, cu:cust, ca:cats, pr:prods} = data;
+  const categories = cats.map(c=>({id:c.i,name:c.n,icon:c.ic,color:c.cl}));
+  const products   = prods.map(p=>({id:p.i,cat:p.c,name:p.n,sku:p.s,unit:p.u,price:p.pr,nt:p.nt||""}));
+  const grouped    = categories.map(c=>({...c,items:products.filter(p=>p.cat===c.id)})).filter(g=>g.items.length>0);
+
+  document.getElementById("app").innerHTML = `
+    <div style="position:fixed;inset:0;background-image:linear-gradient(rgba(99,102,241,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none"></div>
+    <div style="position:relative;z-index:1;direction:rtl">
+      <div style="padding:36px 20px 24px;text-align:center;border-bottom:1px solid rgba(99,102,241,.2)">
+        <div style="font-size:10px;letter-spacing:4px;color:#6366f1;text-transform:uppercase;margin-bottom:10px;opacity:.8">● Order Form</div>
+        <h1 style="font-size:24px;font-weight:900;background:linear-gradient(135deg,#fff,#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px">טופס הזמנה</h1>
+        <p style="font-size:14px;color:#64748b">שלום ${cust.ct}, אנא מלא כמויות ושלח</p>
+      </div>
+      <div style="display:flex;gap:10px;padding:14px 20px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.05)">
+        ${[["לקוח",cust.n],["הזמנה",oid],["תאריך",new Date().toLocaleDateString("he-IL")]].map(([k,v])=>`
+          <div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:6px 12px;font-size:13px">
+            <span style="color:#6366f1;font-weight:700;margin-left:5px">${k}</span>${v}
+          </div>`).join("")}
+      </div>
+      ${grouped.map(cat=>`
+        <div style="margin:14px 20px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.07)">
+          <div style="padding:11px 14px;background:linear-gradient(90deg,${cat.color}15,rgba(99,102,241,.08));border-bottom:1px solid rgba(99,102,241,.12);font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px">
+            <span style="font-size:17px">${cat.icon}</span>${cat.name}
+          </div>
+          <table>
+            <thead><tr><th>מוצר</th><th>יחידה</th><th>מחיר</th><th>כמות</th></tr></thead>
+            <tbody>
+              ${cat.items.map(p=>`
+                <tr>
+                  <td style="font-weight:600;color:#e2e8f0">${p.name}<br><span style="font-size:11px;color:#475569;font-weight:400">${p.sku}</span>${p.nt?`<br><span style="font-size:11px;color:#f59e0b;font-weight:400">📝 ${p.nt}</span>`:""}</td>
+                  <td style="color:#94a3b8">${p.unit}</td>
+                  <td style="color:#34d399;font-weight:700">₪${Number(p.price).toFixed(2)}</td>
+                  <td>
+                    <input type="number" min="0" placeholder="0" class="qty-in" data-id="${p.id}" data-name="${encodeURIComponent(p.name)}" data-unit="${encodeURIComponent(p.unit)}" data-price="${p.price}" oninput="updateSummary()">
+                  </td>
+                </tr>
+                <tr class="note-row">
+                  <td colspan="4" style="padding:4px 12px 10px;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <input type="text" placeholder="📝 הערה למוצר זה (אופציונלי)..." class="note-in" data-id="${p.id}" style="width:100%;font-size:13px;padding:8px 12px;background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.15);border-radius:8px;color:#94a3b8">
+                  </td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>`).join("")}
+      <div style="margin:14px 20px;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.15);border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:700;color:#34d399;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">▸ סיכום</div>
+        <div id="summary-list" style="font-size:13px;color:#334155">טרם נבחרו פריטים...</div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(52,211,153,.2)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:13px;color:#94a3b8">סה"כ לפני מע"מ</span>
+            <span id="total-before" style="font-size:15px;font-weight:700;color:#94a3b8">₪0.00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:13px;color:#64748b">מע"מ 18%</span>
+            <span id="total-vat" style="font-size:13px;color:#64748b">₪0.00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid rgba(52,211,153,.15)">
+            <span style="font-size:15px;color:#34d399;font-weight:700">סה"כ כולל מע"מ</span>
+            <span id="total-price" style="font-size:22px;font-weight:900;color:#34d399">₪0.00</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin:0 20px 14px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px">
+        <label style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6366f1;display:block;margin-bottom:8px">▸ הערות</label>
+        <textarea id="gen-note" placeholder="הערות, בקשות מיוחדות..." style="width:100%;padding:10px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:#e2e8f0;font-size:14px;font-family:inherit;resize:vertical;min-height:70px;outline:none;direction:rtl"></textarea>
+      </div>
+      <div id="warn" style="color:#f59e0b;text-align:center;font-size:13px;margin-bottom:10px;display:none">⚠️ יש לבחור לפחות פריט אחד</div>
+      <div id="sent-msg" style="margin:0 20px 30px;padding:16px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:12px;text-align:center;font-size:15px;font-weight:700;color:#34d399;display:none">✅ ההזמנה נשלחה בהצלחה!</div>
+      <button onclick="submitOrder('${oid}','${bphone}','${cust.n}')" style="display:block;width:calc(100% - 40px);margin:0 20px 40px;padding:17px;background:linear-gradient(135deg,#25D366,#128C7E);color:white;border:none;border-radius:12px;font-size:16px;font-weight:900;font-family:inherit;cursor:pointer;box-shadow:0 8px 30px rgba(37,211,102,.3)" id="send-btn">📲 שלח הזמנה ב-WhatsApp</button>
+    </div>`;
+
+  window.updateSummary = () => {
+    const inputs = document.querySelectorAll(".qty-in");
+    let items=[], total=0;
+    inputs.forEach(inp=>{
+      const q=parseFloat(inp.value)||0;
+      if(q>0){
+        inp.classList.add("has-v");
+        const note=document.querySelector(`.note-in[data-id="${inp.dataset.id}"]`);
+        const lt=q*parseFloat(inp.dataset.price);
+        total+=lt;
+        items.push({name:decodeURIComponent(inp.dataset.name),unit:decodeURIComponent(inp.dataset.unit),q,note:note?note.value:"",lt});
+      } else inp.classList.remove("has-v");
+    });
+    const sl=document.getElementById("summary-list");
+    sl.innerHTML=items.length===0?'<span style="color:#334155">טרם נבחרו פריטים...</span>':
+      items.map(i=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span>${i.name} × ${i.q} ${i.unit}${i.note?` (${i.note})`:""}</span><span style="color:#34d399;font-weight:700">₪${i.lt.toFixed(2)}</span></div>`).join("");
+    const vat = total * 0.18;
+    document.getElementById("total-before").textContent="₪"+total.toFixed(2);
+    document.getElementById("total-vat").textContent="₪"+vat.toFixed(2);
+    document.getElementById("total-price").textContent="₪"+(total+vat).toFixed(2);
+  };
+
+  window.submitOrder = (oid, bphone, custName) => {
+    const inputs=document.querySelectorAll(".qty-in");
+    let lines=[],total=0;
+    inputs.forEach(inp=>{
+      const q=parseFloat(inp.value)||0;
+      if(q>0){
+        const note=document.querySelector(`.note-in[data-id="${inp.dataset.id}"]`);
+        const nt=note&&note.value?` (${note.value})`:"";
+        const lt=q*parseFloat(inp.dataset.price);
+        total+=lt;
+        const name=decodeURIComponent(inp.dataset.name);
+        const unit=decodeURIComponent(inp.dataset.unit);
+        lines.push(`• ${name} ${unit} כמות להזמנה ${q} י"ח${nt} – ₪${lt.toFixed(2)}`);
+      }
+    });
+    if(!lines.length){document.getElementById("warn").style.display="block";return;}
+    document.getElementById("warn").style.display="none";
+    const gn=document.getElementById("gen-note").value;
+    const vat=total*0.18;
+    const msg=`📋 *הזמנה חדשה #${oid}*\n🏢 ${custName}\n📅 ${new Date().toLocaleDateString("he-IL")}\n\n*פירוט:*\n${lines.join("\n")}\n\n💰 לפני מע"מ: ₪${total.toFixed(2)}\n🧾 מע"מ 18%: ₪${vat.toFixed(2)}\n*💵 סה"כ כולל מע"מ: ₪${(total+vat).toFixed(2)}*${gn?`\n\n📝 הערות: ${gn}`:""}`;
+    window.open(`https://wa.me/${bphone}?text=${encodeURIComponent(msg)}`,"_blank");
+    document.getElementById("send-btn").style.display="none";
+    document.getElementById("sent-msg").style.display="block";
+  };
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+(function(){
+  // נסה לקרוא מה-URL
+  const params = new URLSearchParams(window.location.search);
+  const hashVal = window.location.hash.startsWith("#form=") ? window.location.hash.slice(6) : null;
+  const raw = params.get("form") || hashVal;
+
+  function parseAndRender(encoded) {
+    try{
+      const enc = decodeURIComponent(encoded);
+      const bin=atob(enc);
+      const bytes=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      const data=JSON.parse(new TextDecoder("utf-8").decode(bytes));
+      // שמור ב-sessionStorage למקרה שה-URL ייאבד (Safari)
+      sessionStorage.setItem("orderform", encoded);
+      renderCustomerForm(data);
+      return true;
+    } catch(e){
+      document.getElementById("app").innerHTML=`<div style="color:#ef4444;padding:40px;font-family:'Heebo',sans-serif;direction:rtl;font-size:15px">שגיאה בטעינת הטופס:<br>${e.message}</div>`;
+      return false;
+    }
+  }
+
+  if(raw){ parseAndRender(raw); return; }
+
+  // Safari לפעמים מאבד את ה-query — בדוק sessionStorage
+  const saved = sessionStorage.getItem("orderform");
+  if(saved){ parseAndRender(saved); return; }
+
+  render();
+})();
+</script>
+</body>
+</html>
